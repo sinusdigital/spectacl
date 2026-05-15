@@ -1,0 +1,791 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                                        String            @id @default(uuid())
+  email                                     String            @unique
+  createdAt                                 DateTime          @default(now())
+  updatedAt                                 DateTime          @updatedAt
+  emailVerified                             Boolean           @default(false)
+  name                                      String
+  image                                     String?
+  role                                      GlobalRole        @default(USER)
+  lastSeenAt                                DateTime?
+  hasUsedTrial                              Boolean           @default(false)
+  isLocked                                  Boolean           @default(false)
+  lockedReason                              String?
+  tosAcceptedAt                             DateTime?
+  Account                                   Account[]
+  entities                                  Entity[]
+  Session                                   Session[]
+  Space                                     Space[]
+  SpaceInvitation                           SpaceInvitation[]
+  SpaceMember_SpaceMember_invitedByIdToUser SpaceMember[]     @relation("SpaceMember_invitedByIdToUser")
+  SpaceMember_SpaceMember_userIdToUser      SpaceMember[]     @relation("SpaceMember_userIdToUser")
+  AuditLog                                  AuditLog[]
+}
+
+model WaitlistEntry {
+  id        String         @id @default(uuid())
+  email     String         @unique
+  name      String
+  message   String?
+  status    WaitlistStatus @default(PENDING)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model Entity {
+  id                   String                 @id @default(uuid())
+  name                 String
+  userId               String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  website              String?
+  logoUrl              String?
+  aliases              String[]               @default([])
+  isArchived           Boolean                @default(false)
+  primaryColor         String?
+  spaceId              String?
+  createdById          String?
+  discoveryInputs      Json?
+  competitors          Competitor[]
+  user                 User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  space                Space?                 @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  domainOverrides      EntityDomainOverride[]
+  metrics              MetricSnapshot[]
+  modelConfigs         ModelConfig[]
+  prompts              Prompt[]
+  rankings             Ranking[]
+  suggestedCompetitors SuggestedCompetitor[]
+  suggestedPrompts     SuggestedPrompt[]
+  entitySuggestions    EntitySuggestion[]
+  tags                 Tag[]
+
+  @@index([createdById])
+  @@index([spaceId])
+}
+
+model ModelConfig {
+  id         String   @id @default(uuid())
+  provider   String
+  name       String
+  modelId    String
+  apiKey     String?
+  isEnabled  Boolean  @default(true)
+  isArchived Boolean  @default(false)
+  order      Int      @default(0)
+  entityId   String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  entity     Entity   @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  @@unique([entityId, modelId])
+}
+
+model Competitor {
+  id               String            @id @default(uuid())
+  name             String
+  website          String?
+  entityId         String
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  logoUrl          String?
+  aliases          String[]          @default([])
+  darkVibrantColor String?
+  primaryColor     String?
+  mentions         AnalysisMention[]
+  entity           Entity            @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  metrics          MetricSnapshot[]
+  rankings         Ranking[]         @relation("CompetitorToRanking")
+}
+
+model Domain {
+  id            String      @id @default(uuid())
+  domain        String      @unique
+  logoUrl       String?
+  logoBytes     Bytes?
+  logoMimeType  String?
+  lastChecked   DateTime    @default(now())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  isAllowlisted Boolean     @default(false)
+  typeId        String?
+  domainType    DomainType? @relation(fields: [typeId], references: [id])
+
+  @@index([typeId])
+  @@index([isAllowlisted])
+}
+
+model DomainType {
+  id              String                 @id @default(uuid())
+  name            String                 @unique
+  slug            String?                @unique
+  color           String?
+  description     String?
+  isOwned         Boolean                @default(false)
+  isEarned        Boolean                @default(false)
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  domains         Domain[]
+  entityOverrides EntityDomainOverride[]
+}
+
+model EntityDomainOverride {
+  id         String      @id @default(uuid())
+  entityId   String
+  domain     String
+  typeId     String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  entity     Entity      @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  domainType DomainType? @relation(fields: [typeId], references: [id])
+
+  @@unique([entityId, domain])
+  @@index([entityId])
+}
+
+model Prompt {
+  id               String           @id @default(uuid())
+  text             String
+  entityId         String
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  intent           String           @default("Informational")
+  frequency        PromptFrequency  @default(Every24Hours)
+  llms             String[]         @default(["gpt-4", "claude-3-opus", "gemini-pro"])
+  status           PromptStatus     @default(Running)
+  lastRunAt        DateTime?
+  nextRunAt        DateTime?        @default(now())
+  avgPosition30d   Float?
+  avgPosition7d    Float?
+  avgPosition90d   Float?
+  lastAvgPosition  Float?
+  lastMentionRate  Float?
+  lastShareOfVoice Float?
+  mentionRate30d   Float?
+  mentionRate7d    Float?
+  mentionRate90d   Float?
+  shareOfVoice30d  Float?
+  shareOfVoice7d   Float?
+  shareOfVoice90d  Float?
+  language         String?
+  analysisResults  AnalysisResult[]
+  domainCitations  DomainCitation[]
+  entity           Entity           @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  ranking          Ranking?
+  tags             Tag[]            @relation("PromptToTag")
+
+  @@index([entityId, status])
+  @@index([nextRunAt])
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String
+  color     String?
+  entityId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  entity    Entity   @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  prompts   Prompt[] @relation("PromptToTag")
+
+  @@unique([name, entityId])
+}
+
+model CheckRun {
+  id              String           @id @default(uuid())
+  startedAt       DateTime         @default(now())
+  completedAt     DateTime?
+  analysisResults AnalysisResult[]
+}
+
+model AnalysisResult {
+  id           String            @id @default(uuid())
+  promptId     String
+  checkRunId   String
+  llmModel     String
+  llmProvider  String?
+  response     String
+  position     Int?
+  mentioned    Boolean           @default(false)
+  createdAt    DateTime          @default(now())
+  errorMessage String?
+  status       String            @default("success")
+  progressStep String?
+  links        AnalysisLink[]
+  mentions     AnalysisMention[]
+  checkRun     CheckRun          @relation(fields: [checkRunId], references: [id], onDelete: Cascade)
+  prompt       Prompt            @relation(fields: [promptId], references: [id], onDelete: Cascade)
+
+  @@index([promptId, createdAt(sort: Desc)])
+  @@index([llmModel])
+  @@index([mentioned])
+  @@index([status])
+}
+
+model AnalysisLink {
+  id               String         @id @default(uuid())
+  url              String
+  domain           String
+  analysisResultId String
+  createdAt        DateTime       @default(now())
+  analysisResult   AnalysisResult @relation(fields: [analysisResultId], references: [id], onDelete: Cascade)
+
+  @@index([domain])
+}
+
+model AnalysisMention {
+  id                    String               @id @default(uuid())
+  analysisResultId      String
+  competitorId          String?
+  suggestedCompetitorId String?
+  isPrimaryEntity       Boolean              @default(false)
+  detectedName          String
+  position              Int?
+  createdAt             DateTime             @default(now())
+  analysisResult        AnalysisResult       @relation(fields: [analysisResultId], references: [id], onDelete: Cascade)
+  competitor            Competitor?          @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+  suggestedCompetitor   SuggestedCompetitor? @relation(fields: [suggestedCompetitorId], references: [id], onDelete: SetNull)
+
+  @@index([analysisResultId])
+  @@index([competitorId])
+  @@index([suggestedCompetitorId])
+}
+
+model DomainCitation {
+  id        String   @id @default(uuid())
+  promptId  String
+  domain    String
+  count     Int
+  presence  Int
+  lastSeen  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  prompt    Prompt   @relation(fields: [promptId], references: [id], onDelete: Cascade)
+
+  @@unique([promptId, domain])
+  @@index([promptId, count(sort: Desc)])
+}
+
+model MetricSnapshot {
+  id             String      @id @default(uuid())
+  entityId       String?
+  competitorId   String?
+  timeframe      String
+  visibility     Float
+  totalCount     Int         @default(0)
+  mentionCount   Int         @default(0)
+  shareOfVoice   Float
+  position       Float?
+  linkPercentage Float       @default(0)
+  createdAt      DateTime    @default(now())
+  competitor     Competitor? @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+  entity         Entity?     @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  @@index([entityId])
+  @@index([competitorId])
+}
+
+model SuggestedCompetitor {
+  id        String            @id @default(uuid())
+  name      String
+  website   String?
+  entityId  String
+  status    String            @default("suggested")
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  entity    Entity            @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  mentions  AnalysisMention[]
+
+  @@unique([name, entityId])
+}
+
+model SuggestedPrompt {
+  id        String   @id @default(uuid())
+  text      String
+  intent    String?
+  entityId  String
+  status    String   @default("suggested")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  entity    Entity   @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  @@unique([entityId, text])
+  @@index([entityId])
+}
+
+// AEO suggestion (per-entity, persistent). `tacticId` joins to AeoPlaybookItem.slug;
+// SetNull so a deleted/deactivated playbook item leaves user-owned rows intact.
+model EntitySuggestion {
+  id              String                @id @default(uuid())
+  entityId        String
+  tacticId        String? // null for manual/custom; non-null = derived from a playbook item slug
+  title           String
+  description     String
+  category        AeoSuggestionCategory
+  channel         AeoChannel
+  impact          Int
+  effort          Int
+  status          AeoSuggestionStatus   @default(Suggested)
+  source          AeoSuggestionSource   @default(engine)
+  tags            String[]              @default([])
+  triggerContext  Json?
+  notes           String?
+  dueDate         DateTime?
+  dismissedReason String?
+  // First-acknowledged timestamp. Null = row has never been opened or actioned
+  // by a user (the "NEW" dot + bold title appear in the UI). Set on the first
+  // PATCH/drawer-open/status-change/bulk-action. Engine refresh never changes it.
+  viewedAt        DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  entity          Entity                @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  playbookItem    AeoPlaybookItem?      @relation(fields: [tacticId], references: [slug], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([entityId, tacticId])
+  @@index([entityId, status])
+  @@index([entityId, channel])
+}
+
+// AEO playbook — the canonical, admin-editable library of AEO tactics.
+// Replaces the static GEO_TACTICS array. Joined from EntitySuggestion via slug.
+model AeoPlaybookItem {
+  id                    String                @id @default(uuid())
+  slug                  String                @unique
+  title                 String
+  description           String                // markdown
+  category              AeoSuggestionCategory
+  channel               AeoChannel
+  defaultImpact         Int
+  defaultEffort         Int
+  tags                  String[]              @default([])
+  triggers              Json                  @default("[]") // populated in Phase 3
+  personalizationPrompt String? // Phase 4
+  version               Int                   @default(1)
+  isActive              Boolean               @default(true)
+  createdById           String? // SetNull on User delete
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  entitySuggestions     EntitySuggestion[]
+
+  @@index([isActive, channel])
+}
+
+model Ranking {
+  id               String       @id @default(uuid())
+  primaryBuyerRole String?
+  companySize      String?
+  industry         String?
+  decisionContext  String?
+  entityId         String
+  promptId         String       @unique
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  name             String?
+  isArchived       Boolean      @default(false)
+  entity           Entity       @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  prompt           Prompt       @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  competitors      Competitor[] @relation("CompetitorToRanking")
+}
+
+model Account {
+  id           String    @id
+  userId       String
+  accountId    String
+  providerId   String
+  accessToken  String?
+  refreshToken String?
+  idToken      String?
+  expiresAt    DateTime?
+  password     String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  User         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+model Session {
+  id        String   @id
+  userId    String
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+}
+
+model Space {
+  id                     String             @id
+  name                   String
+  slug                   String             @unique
+  createdById            String?
+  plan                   SpacePlan          @default(STARTER)
+  subscriptionStatus     SubscriptionStatus @default(TRIALING)
+  trialEndsAt            DateTime?
+  currentPeriodEnd       DateTime?
+  llmProvider            LLMProvider        @default(MANAGED)
+  enabledModels          String[]           @default(["gpt-4", "claude-3-opus", "gemini-pro"])
+  llmCreditsRemaining    Int                @default(0)
+  llmCreditsUsed         Int                @default(0)
+  creditResetDate        DateTime?
+  openaiApiKey           String?
+  anthropicApiKey        String?
+  googleApiKey           String?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+  mistralApiKey          String?
+  mollieCustomerId       String?
+  mollieSubscriptionId   String?
+  molliePaymentId        String?
+  /// Only protects against immediate duplicate webhook delivery
+  lastProcessedWebhookId String?
+  canceledAt             DateTime?
+  cancellationReason     String?
+  isLocked               Boolean            @default(false)
+  lockedAt               DateTime?
+  lockedReason           String?
+  User                   User?              @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  Entity                 Entity[]
+  SpaceInvitation        SpaceInvitation[]
+  SpaceMember            SpaceMember[]
+  SpaceModelConfig       SpaceModelConfig[]
+  SpaceUsage             SpaceUsage?
+  BillingProfile         BillingProfile?
+  Invoice                Invoice[]
+
+  @@index([createdById])
+}
+
+model SpaceInvitation {
+  id          String           @id
+  email       String
+  spaceId     String
+  role        SpaceRole        @default(MEMBER)
+  token       String           @unique
+  invitedById String
+  status      InvitationStatus @default(PENDING)
+  expiresAt   DateTime
+  createdAt   DateTime         @default(now())
+  User        User             @relation(fields: [invitedById], references: [id], onDelete: Cascade)
+  Space       Space            @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([spaceId])
+  @@index([token])
+}
+
+model SpaceMember {
+  userId                             String
+  spaceId                            String
+  role                               SpaceRole @default(MEMBER)
+  joinedAt                           DateTime  @default(now())
+  invitedById                        String?
+  User_SpaceMember_invitedByIdToUser User?     @relation("SpaceMember_invitedByIdToUser", fields: [invitedById], references: [id], onDelete: SetNull)
+  Space                              Space     @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  User_SpaceMember_userIdToUser      User      @relation("SpaceMember_userIdToUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, spaceId])
+  @@index([spaceId])
+  @@index([userId])
+}
+
+model SpaceUsage {
+  id                String   @id
+  spaceId           String   @unique
+  memberCount       Int      @default(0)
+  entityCount       Int      @default(0)
+  promptCount       Int      @default(0)
+  totalAnalysisRuns Int      @default(0)
+  updatedAt         DateTime @updatedAt
+  Space             Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@index([spaceId])
+}
+
+model SpaceModelConfig {
+  id         String   @id @default(uuid())
+  spaceId    String
+  provider   String
+  modelId    String
+  name       String
+  isEnabled  Boolean  @default(true)
+  isArchived Boolean  @default(false)
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  space      Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, modelId])
+  @@index([spaceId])
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model InternalTaskModel {
+  taskKey         String   @id
+  provider        String
+  modelId         String
+  displayName     String?
+  maxOutputTokens Int      @default(1500)
+  updatedAt       DateTime @updatedAt
+}
+
+model GlobalCitationSnapshot {
+  id         String   @id @default(uuid())
+  /// YYYY-MM  e.g. '2026-03'
+  period     String
+  /// 'all' for aggregate, or specific model name e.g. 'gpt-4o'
+  llmModel   String
+  domain     String
+  count      Int
+  percentage Float
+  createdAt  DateTime @default(now())
+
+  @@unique([period, llmModel, domain])
+  @@index([period, llmModel])
+}
+
+model GlobalModel {
+  id              String   @id @default(cuid())
+  provider        String
+  modelId         String   @unique
+  displayName     String
+  isEnabled       Boolean  @default(true)
+  isArchived      Boolean  @default(false)
+  contextWindow   Int?
+  order           Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  maxOutputTokens Int      @default(1500)
+
+  @@index([provider])
+}
+
+model SpaceDeletionLog {
+  id        String   @id @default(cuid())
+  spaceId   String
+  spaceName String
+  plan      String
+  reason    String?
+  deletedAt DateTime @default(now())
+  source    String   @default("deletion")
+
+  @@index([deletedAt])
+  @@index([source])
+}
+
+enum GlobalRole {
+  USER
+  ADMIN
+}
+
+enum WaitlistStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PromptStatus {
+  Running
+  Paused
+}
+
+enum PromptFrequency {
+  Every6Hours
+  Every24Hours
+  Every2Days
+  Every7Days
+}
+
+// AEO Suggestion enums
+
+enum AeoChannel {
+  OnPage
+  OffPage
+}
+
+enum AeoSuggestionCategory {
+  Content
+  Technical
+  Authority
+  UX
+  Brand
+}
+
+enum AeoSuggestionStatus {
+  Suggested
+  ToDo
+  In_Progress
+  Done
+  Dismissed
+  Archived
+}
+
+enum AeoSuggestionSource {
+  engine
+  manual
+  llm_custom
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum LLMProvider {
+  MANAGED
+  BYOK
+}
+
+enum SpacePlan {
+  FOUNDER
+  STARTER
+  PRO
+  BUSINESS
+  ENTERPRISE
+}
+
+enum SpaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
+model Language {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  group     String
+  order     Int      @default(0)
+  isEnabled Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  targetType String
+  targetId   String?
+  detail     Json?
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([action])
+  @@index([targetType, targetId])
+}
+
+// --- Billing & Invoicing ---
+
+enum InvoiceTaxType {
+  STANDARD       // 21% BTW (NL domestic or EU without valid VAT ID)
+  REVERSE_CHARGE // 0%, EU cross-border B2B with valid VAT ID
+  EXEMPT         // 0%, non-EU
+}
+
+model BillingProfile {
+  id          String   @id @default(cuid())
+  spaceId     String   @unique
+  companyName String
+  street      String
+  city        String
+  postalCode  String
+  country     String   // ISO 3166-1 alpha-2 (e.g. "NL", "DE", "US")
+  vatId       String?
+  vatIdValid  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+}
+
+model Invoice {
+  id              String         @id @default(cuid())
+  number          String         @unique // "INV-2026-0001"
+  spaceId         String?
+  molliePaymentId String?
+
+  // Seller snapshot (immutable at time of invoice)
+  sellerCompanyName String?
+  sellerStreet      String?
+  sellerCity        String?
+  sellerPostalCode  String?
+  sellerCountry     String?
+  sellerVatId       String?
+  sellerKvk         String?
+  sellerEmail       String?
+
+  // Buyer snapshot (immutable at time of invoice)
+  companyName String
+  street      String
+  city        String
+  postalCode  String
+  country     String
+  vatId       String?
+
+  // Line items & tax
+  lineItems Json           // [{ description, quantity, unitPrice, amount }]
+  taxType   InvoiceTaxType
+  taxRate   Float          // 0.21 or 0
+  taxLabel  String         // "21% BTW", "VAT Reverse Charge", "Tax Exempt"
+  subtotal  Float          // Net amount (ex-VAT)
+  taxAmount Float
+  total     Float          // Subtotal + tax
+  currency  String         @default("EUR")
+
+  // Billing period
+  periodStart DateTime?
+  periodEnd   DateTime?
+
+  issuedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  space Space? @relation(fields: [spaceId], references: [id], onDelete: SetNull)
+
+  @@index([spaceId])
+  @@index([issuedAt])
+  @@index([molliePaymentId])
+}
+
+model InvoiceCounter {
+  year    Int @id
+  lastSeq Int @default(0)
+}
