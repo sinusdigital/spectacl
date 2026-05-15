@@ -1,0 +1,47 @@
+name: Feature request
+description: Suggest a new feature or improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening a request, please check existing issues and discussions to avoid duplicates. For non-trivial features, expect a conversation about scope and fit before any code is written.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the user problem or workflow gap. Skip "as a user, I want..." — just say what's frustrating today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How would you like this to work? Include UI sketches or rough API shapes if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you thought about and why you didn't pick them.
+    validations:
+      required: false
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Affected deployment mode
+      options:
+        - Both self-hosted and cloud
+        - Self-hosted only
+        - Cloud only
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Links, examples from other tools, mockups, anything else.
+    validations:
+      required: false

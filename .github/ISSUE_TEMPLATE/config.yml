@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/sinusdigital/spectacl/security/advisories/new
+    about: Report a security issue privately — do not open a public issue.
+  - name: Question or discussion
+    url: https://github.com/sinusdigital/spectacl/discussions
+    about: Ask questions, share ideas, or discuss usage with the community.
+  - name: Managed cloud support
+    url: https://spectacl.org
+    about: Customer support for the hosted version at spectacl.org.
