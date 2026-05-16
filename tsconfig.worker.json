@@ -1,0 +1,20 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "noEmit": false,
+        "outDir": "worker-build",
+        "rootDir": ".",
+        "skipLibCheck": true
+    },
+    "include": [
+        "src/workers/**/*",
+        "src/lib/**/*"
+    ],
+    "ts-node": {
+        "require": [
+            "tsconfig-paths/register"
+        ]
+    }
+}
