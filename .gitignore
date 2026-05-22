@@ -1,0 +1,46 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Test coverage
+coverage
+
+# Environment
+.env
+.env.local
+.env.*.local
+.env.sentry-build-plugin
+
+# Misc
+*.tgz
+.cache
+git 
+
+
+# nextjs
+/.next
+.next
+/public/logos
+tsconfig.tsbuildinfo
+worker-build
+.agent
+docs
+.claude
+next-env.d.ts
